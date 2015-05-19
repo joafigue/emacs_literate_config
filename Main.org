@@ -1,0 +1,42 @@
+
+This is the main configuration file for Emacs, this file hold the rationale for the package choices and their minimal configurations.
+Further configurations, if any, is available through additional sourced org-files in the specific org-directory
+
+* Package repositories
+It was already stated that I have no intention of using package outside melpa-stable, org, and the default gnu.
+
+#+BEGIN_SRC emacs-lisp
+  ;; Loading the chosen package repositories
+  (add-to-list 'package-archives
+               '("melpa-stable" . "http://stable.melpa.org/packages/") t)
+  (add-to-list 'package-archives
+               '("org" . "http://orgmode.org/elpa/") t)
+#+END_SRC
+
+* UI Customizations
+The UI customizations, refer only to the "look-and-feel" of emacs, these include things like removing toolbars and color schemes, nothing game-breaking for any user
+** Color theme
+I use [[https://github.com/bbatsov/zenburn-emacs][Zenburn]] theme, because it looks well enough on both terminal and GUI modes (And I work a lot on the terminal). there are 2 main things to consider
+1) For terminal use, you would like to customize the terminal color-scheme to a compatible one with zenburn so it will look OK
+2) I have an optional feature to make the background transparent on terminal, but I'm not using it right now.
+#+BEGIN_SRC emacs-lisp
+  (req-package zenburn-theme
+    :config (defun apply-bg-color (frame)
+              "Apply special background color to a frame based on whether its a 'real'
+     window or a console window."
+              (select-frame frame)
+              (if (window-system frame)
+                  (set-face-background 'default "#3f3f3f" frame)
+                ;;  (set-face-background 'default "nil" frame)
+                (set-face-background 'default "#3f3f3f" frame)
+                ))
+    (add-hook 'after-make-frame-functions 'apply-bg-color))
+
+#+END_SRC
+* Final Emacs-Lisp
+This section holds the configurations that must go at the end of the configuration file, this section is required for the proper functions of req-package, so no further configurations can be included after this section
+#+BEGIN_SRC emacs-lisp
+(message "Finished loading")
+(req-package-finish)
+;; No further configurations beyond this line
+#+END_SRC

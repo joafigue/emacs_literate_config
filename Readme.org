@@ -1,0 +1,43 @@
+
+This is a my set of configuration files to set-up Emacs, which was created using a literate style for trying to cleanup the hassle of having multiple packages and keeping the configuration available for different machines.
+This configuration assumes a recent version of Emacs (Emacs-24.4) and git installed in a Linux environment (Other systems not tested)
+
+This installation is based on the ideas from  [[https://github.com/eschulte/emacs24-starter-kit/][Emacs starter kit]] to configure packages and literate Emacs configuration, however I haven't decided to use it as the amount of configuration was beyond my requirements at this point, given that I started using vanilla Emacs, and I couldn't get used to other people's configuration (I tried other options such as [[https://github.com/bbatsov/prelude][Emacs-prelude]]), thus I have my own which has evolved piece by piece.
+
+Unlike  [[https://github.com/eschulte/emacs24-starter-kit/][Emacs starter kit]] I have decided to use [[https://github.com/edvorg/req-package][req-package]] as a tool for automating the instalation of the required packages, though the advantages from  [[https://github.com/edvorg/req-package][req-package]] over [[https://github.com/jwiegley/use-package][use-package]] are not entirely clear to me, as I don't intend to use any packages from sources outside standard repositories, thus [[https://github.com/dimitri/el-get][el-get]] integration is not required, however since  [[https://github.com/edvorg/req-package][req-package]] claims to handle dependencies better I will stick with it, in cas I ever need it.
+ 
+This Readme file generates the corresponding init.el file that is used in other literate Emacs systems, which is included as part of the git repository for ease of use. To ensure that  [[https://github.com/edvorg/req-package][req-package]] is available I used a the same trick shown in [[https://github.com/dimitri/el-get#alternative-basic-setup-with-installation-via-melpa][el-get]] configuration section
+
+* Emacs init file
+  :PROPERTIES:
+  :tangle:   init.el
+  :END:
+
+The init file will make sure that =req-package= in a similar way as shown by [[https://github.com/dimitri/el-get][el-get]] package configuration before loading the rest of the org-configuration files.
+
+Also I have no intention of using a package that is not available through either the default gnu-repository, melpa-stable or the org-mode repository
+
+#+BEGIN_SRC emacs-lisp
+      ;;; init.el --- Load all org-related files
+  ;; This is the first thing to get loaded.
+  ;;
+  ;; Ensure req-package is available from melpa-stable
+  (package-initialize)
+  (unless (require 'req-package nil 'noerror)
+    (require 'package)
+    (add-to-list 'package-archives
+                 '("melpa-stable" . "http://stable.melpa.org/packages/") t)
+    (package-refresh-contents)
+    (package-initialize)
+    (package-install 'req-package)
+    (require 'req-package))
+
+  ;; Setting directories to load files
+  (setq emacs-files-dir (file-name-directory (or load-file-name (buffer-file-name))))
+
+  ;; Load up Org Mode and Babel
+  (req-package org)
+  ;; Load org-files
+     (org-babel-load-file (expand-file-name "Main.org" emacs-files-dir))
+#+END_SRC
+
