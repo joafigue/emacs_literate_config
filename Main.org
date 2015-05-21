@@ -31,7 +31,19 @@ I use [[https://github.com/bbatsov/zenburn-emacs][Zenburn]] theme, because it lo
                 (set-face-background 'default "#3f3f3f" frame)
                 ))
     (add-hook 'after-make-frame-functions 'apply-bg-color))
-
+#+END_SRC
+** UI items
+I have no use for the menu-bar, the scroll bar, etc, so I disable them all
+#+BEGIN_SRC emacs-lisp
+  ;; Disable useless menu items
+  (setq menu-bar-mode nil)
+  (set-scroll-bar-mode nil)
+  (setq tool-bar-mode nil)
+#+END_SRC
+Also I beleive it's useful to have the column line marked
+#+BEGIN_SRC emacs-lisp
+  ;; Add column information
+  (column-number-mode t)
 #+END_SRC
 * Final Emacs-Lisp
 This section holds the configurations that must go at the end of the configuration file, this section is required for the proper functions of req-package, so no further configurations can be included after this section
