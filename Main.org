@@ -35,9 +35,9 @@ I use [[https://github.com/bbatsov/zenburn-emacs][Zenburn]] theme, because it lo
 I have no use for the menu-bar, the scroll bar, etc, so I disable them all
 #+BEGIN_SRC emacs-lisp
   ;; Disable useless menu items
-  (setq menu-bar-mode nil)
-  (set-scroll-bar-mode nil)
-  (setq tool-bar-mode nil)
+  (menu-bar-mode -1)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
 #+END_SRC
 Also I believe it's useful to have the column line marked
 #+BEGIN_SRC emacs-lisp
@@ -93,7 +93,8 @@ Undo tree is great for buffer edition, as it allows for a visual representation 
 Magit is an awesome git-interface, in fact I dare to say that for a git user, Magit may be enough reason to use emacs
 #+BEGIN_SRC emacs-lisp
   ;; Installing magit
-  (req-package magit)
+  (req-package magit
+    :init (setq magit-last-seen-setup-instructions "1.4.0"))
 #+END_SRC
 ** Org-mode
    :PROPERTIES:
