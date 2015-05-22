@@ -1,4 +1,3 @@
-
 This is the main configuration file for Emacs, this file hold the rationale for the package choices and their minimal configurations.
 Further configurations, if any, is available through additional sourced org-files in the specific org-directory
 
@@ -40,10 +39,70 @@ I have no use for the menu-bar, the scroll bar, etc, so I disable them all
   (set-scroll-bar-mode nil)
   (setq tool-bar-mode nil)
 #+END_SRC
-Also I beleive it's useful to have the column line marked
+Also I believe it's useful to have the column line marked
 #+BEGIN_SRC emacs-lisp
   ;; Add column information
   (column-number-mode t)
+#+END_SRC
+** Editor variables
+These are smaller Emacs variables that modify its behavior slightly, the first is that I want no tabs on my files.
+#+BEGIN_SRC emacs-lisp
+  ;; To actually insert tabs, use C-q <tab>
+  (setq-default indent-tabs-mode nil)
+#+END_SRC
+* Emacs packages configuration
+  :PROPERTIES:
+  :ID:       INSTALLED
+  :COLUMNS:  %25ITEM(Packages installed)  %DESCRIPTION
+  :END:
+This section holds the configuration for the existing packages, and the installation instructions for several other packages even if I don't configure them
+
+#+BEGIN: columnview :hlines 1 :id "INSTALLED"
+| Packages installed             | DESCRIPTION                   |
+|--------------------------------+-------------------------------|
+| * Emacs packages configuration |                               |
+| ** Ido Mode                    | Easier file-buffer completion |
+| ** Undo tree                   | Better Undo-redo behavior     |
+| ** Magit                       | Great Git interface           |
+| ** Org-mode                    | Org-mode configs              |
+#+END:
+** Ido Mode
+   :PROPERTIES:
+   :DESCRIPTION: Easier file-buffer completion
+   :END:
+Ido mode is very useful for file and buffer navigation, thanks to the flexible matching, since Ido-mode is built-in I only need minor configurations. For a more advanced guide on Ido-mode see [[https://www.masteringemacs.org/article/introduction-to-ido-mode][Mastering Emacs]]
+#+BEGIN_SRC emacs-lisp
+  ;; Small configuration for IDO-mode
+  (setq ido-enable-flex-matching t)
+  (setq ido-everywhere t)
+  (ido-mode 1)
+#+END_SRC
+** Undo tree
+   :PROPERTIES:
+   :DESCRIPTION: Better Undo-redo behavior
+   :END:
+Undo tree is great for buffer edition, as it allows for a visual representation of the different states of the document through a tree. The tree representation is more comfortable than the default list analogy, and the fact that the buffer status is browse-able, makes it even better
+#+BEGIN_SRC emacs-lisp
+  (req-package undo-tree
+    :config (global-undo-tree-mode 1))
+#+END_SRC
+** Magit
+   :PROPERTIES:
+   :DESCRIPTION: Great Git interface
+   :END:
+Magit is an awesome git-interface, in fact I dare to say that for a git user, Magit may be enough reason to use emacs
+#+BEGIN_SRC emacs-lisp
+  ;; Installing magit
+  (req-package magit)
+#+END_SRC
+** Org-mode
+   :PROPERTIES:
+   :DESCRIPTION: Org-mode configs
+   :END:
+[[http://orgmode.org/][Org-mode]] is a great package, and has so many features, that is hard to do a small summary, at the very least, the whole initialization file was written using it. The most simple customization for it is to use font-locking for the source fragments
+#+BEGIN_SRC emacs-lisp
+  ;; Pretty-printing for source blocks in org
+  (setq org-src-fontify-natively t)
 #+END_SRC
 * Final Emacs-Lisp
 This section holds the configurations that must go at the end of the configuration file, this section is required for the proper functions of req-package, so no further configurations can be included after this section
