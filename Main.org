@@ -50,6 +50,18 @@ These are smaller Emacs variables that modify its behavior slightly, the first i
   ;; To actually insert tabs, use C-q <tab>
   (setq-default indent-tabs-mode nil)
 #+END_SRC
+** Disabling auto-save/backup
+Backup files =*~= and auto-save files scattered through the file-system are annoying, while I could send them all to a backup folder, I've decided against it because most files that I care about are under version control (git) so I have little reason to use them.
+#+BEGIN_SRC emacs-lisp
+  ;; Disable auto-save/backup files
+  (setq backup-inhibited t)
+  (setq auto-save-default nil)
+#+END_SRC
+** Easier confirmation
+Emacs use a =yes-or-no= query for several confirmations, which requires explicit typing of =yes= and =no= keywords, to simplify the flow, this is replaced by a simple =y-or-n= query which is accepted by typing =y= or =n= which is simpler and faster, as shown by [[http://www.emacswiki.org/emacs/YesOrNoP][emacs-wiki]]
+#+BEGIN_SRC emacs-lisp
+  (defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
 * Emacs packages configuration
   :PROPERTIES:
   :ID:       INSTALLED
