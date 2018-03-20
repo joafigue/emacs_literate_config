@@ -6,10 +6,54 @@ It was already stated that I have no intention of using package outside melpa-st
 
 #+BEGIN_SRC emacs-lisp
   ;; Loading the chosen package repositories
-  (add-to-list 'package-archives
-               '("melpa-stable" . "http://stable.melpa.org/packages/") t)
-  (add-to-list 'package-archives
-               '("org" . "http://orgmode.org/elpa/") t)
+
+  (setq package-archives
+        '(("GNU ELPA"     . "http://elpa.gnu.org/packages/")
+          ("MELPA Stable" . "https://stable.melpa.org/packages/")
+          ("MELPA"        . "https://melpa.org/packages/")
+          ("ORG" . "http://orgmode.org/elpa/")
+          )
+        package-archive-priorities
+        '(("GNU ELPA"     . 11)
+          ("MELPA Stable" . 10)
+          ("ORG" . 8)
+          ("MELPA"        . 0)
+          ))
+#+END_SRC
+
+** Now use security
+In order to avoid some security issues we need to set-up tls just as discussed in [[https://glyph.twistedmatrix.com/2015/11/editor-malware.html]]. Yhanks for the link on [[https://ogbe.net/emacsconfig.html]]
+#+BEGIN_SRC emacs-lisp
+  (setq tls-checktrust t)
+  (setq gnutls-verify-error t)
+  (let ((trustfile
+         (replace-regexp-in-string
+          "\\\\" "/"
+          (replace-regexp-in-string
+           "\n" ""
+           (shell-command-to-string "python -m certifi")))))
+    (setq tls-program
+          (list
+           (format "gnutls-cli%s --x509cafile %s -p %%p %%h"
+                   (if (eq window-system 'w32) ".exe" "") trustfile))))
+
+  (defun security//test-tls()
+    (require 'cl)
+    (let ((bad-hosts
+           (loop for bad
+                 in `("https://wrong.host.badssl.com/"
+                      "https://self-signed.badssl.com/")
+                 if (condition-case e
+                        (url-retrieve
+                         bad (lambda (retrieved) t))
+                      (error nil))
+                 collect bad)))
+      (if bad-hosts
+          (error (format "tls misconfigured; retrieved %s ok"
+                         bad-hosts))
+        (url-retrieve "https://badssl.com"
+                      (lambda (retrieved) t))))
+    )
 #+END_SRC
 
 * UI Customizations
@@ -36,8 +80,10 @@ I have no use for the menu-bar, the scroll bar, etc, so I disable them all
 #+BEGIN_SRC emacs-lisp
   ;; Disable useless menu items
   (menu-bar-mode -1)
-  (tool-bar-mode -1)
-  (scroll-bar-mode -1)
+  (when (fboundp 'tool-bar-mode)
+    (tool-bar-mode -1))
+  (when (  fboundp 'scroll-bar-mode)
+    (scroll-bar-mode -1))
 #+END_SRC
 Also I believe it's useful to have the column line marked
 #+BEGIN_SRC emacs-lisp
@@ -61,6 +107,11 @@ Backup files =*~= and auto-save files scattered through the file-system are anno
 Emacs use a =yes-or-no= query for several confirmations, which requires explicit typing of =yes= and =no= keywords, to simplify the flow, this is replaced by a simple =y-or-n= query which is accepted by typing =y= or =n= which is simpler and faster, as shown by [[http://www.emacswiki.org/emacs/YesOrNoP][emacs-wiki]]
 #+BEGIN_SRC emacs-lisp
   (defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+** GUI Emacs mouse Yank
+I hate that when yanking with the mouse, I have to "click" exactly where I want to yank, while almost always this means exactly where the point is.
+#+BEGIN_SRC emacs-lisp
+(setq mouse-yank-at-point t)
 #+END_SRC
 * Emacs packages configuration
   :PROPERTIES:
@@ -117,10 +168,138 @@ Magit is an awesome git-interface, in fact I dare to say that for a git user, Ma
   ;; Pretty-printing for source blocks in org
   (setq org-src-fontify-natively t)
 #+END_SRC
+
+* Latex Configuration
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package 'reftex
+  ;;               :config   (add-hook 'LaTeX-mode-hook 'reftex-mode) ;reftex ON
+  ;;               )
+  (setq-default TeX-master nil)
+  (add-hook 'LaTeX-mode-hook 'TeX-PDF-mode) ;turn on pdf-mode.  AUCTeX
+                                          ;will call pdflatex to
+                                          ;compile instead of latex.
+  (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode) ;turn on math-mode by
+                                          ;default
+  (add-hook 'LaTeX-mode-hook 'flyspell-mode) ;turn on flyspell mode by
+                                          ;default
+
+  (setq reftex-plug-into-AUCTeX t)
+  (setq TeX-auto-save t)
+  (setq TeX-save-query nil)
+  (setq TeX-parse-self t)
+#+END_SRC
+* Test commands
+These are features that I use but I have yet to properly document.
+
+** PDF
+#+BEGIN_SRC emacs-lisp
+  ;;  To see PDF in a sane way
+  (req-package pdf-tools
+    :init (pdf-tools-install))
+#+END_SRC
+
+** Highlight parenthesis
+#+BEGIN_SRC emacs-lisp
+  (req-package highlight-parentheses
+    :init (setq hl-paren-colors '("Springgreen3" "IndianRed1" "IndianRed3" "IndianRed4"))
+    :config
+    (define-globalized-minor-mode global-highlight-parentheses-mode
+      highlight-parentheses-mode
+      (lambda ()
+        (highlight-parentheses-mode t)))
+    (global-highlight-parentheses-mode t))
+#+END_SRC
+
+** Eshell visual commands fix
+#+BEGIN_SRC emacs-lisp
+  (use-package eshell
+    :config
+    (add-hook 'eshell-mode-hook
+              (lambda ()
+                (add-to-list 'eshell-visual-commands "ipython")
+                (add-to-list 'eshell-visual-commands "ipython2")
+                (add-to-list 'eshell-visual-commands "maxima")
+                )))
+
+#+END_SRC
+
+** Cool BG transparency
+#+BEGIN_SRC emacs-lisp
+
+  (setq jf-term-bg-def "#3f3f3f")
+  (setq jf-term-bg-alt "nil")
+  (defvar jf-term-bg jf-term-bg-def)
+
+  (defun toggle-term-bg()
+    (interactive)
+    (if (eq jf-term-bg jf-term-bg-def)
+        (setq jf-term-bg jf-term-bg-alt)
+      (setq jf-term-bg jf-term-bg-def))
+    (let (frame (selected-frame))
+      (if (window-system frame)
+          (set-face-background 'default jf-term-bg-def frame)
+        (set-face-background 'default jf-term-bg frame)))
+    )
+
+  (global-set-key (kbd "C-c p") #'toggle-term-bg )
+
+#+END_SRC
+
+** Org-edit-latex
+#+BEGIN_SRC emacs-lisp :results none
+  (use-package org-edit-latex
+    :config
+    (add-hook 'org-mode-hook 'org-edit-latex-mode)
+    )
+
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (latex . t)   ;; <== add latex to the list
+     (python . t)
+     (shell . t)
+     (haskell . t)
+     ))
+#+END_SRC
+
+** org-highlight latex
+#+BEGIN_SRC emacs-lisp :results none
+(setq org-highlight-latex-and-related '(latex))
+#+END_SRC
+
+** fix ediff
+#+BEGIN_SRC emacs-lisp
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+(setq ediff-split-window-function 'split-window-horizontally)
+#+END_SRC
+
+#+RESULTS:
+: split-window-horizontally
+
+** Ibuffer
+#+BEGIN_SRC emacs-lisp
+(global-set-key (kbd "C-x C-b") 'ibuffer)
+#+END_SRC
+
+** langtool
+Lantool is a tool for more advanced ortographical corrections coupled with gramatical enhancements
+#+BEGIN_SRC emacs-lisp
+(require 'langtool)
+(setq langtool-java-classpath "/usr/share/languagetool:/usr/share/java/languagetool/")
+#+END_SRC
+** Create X-window frame
+Many times I just use terminal emacs, however there are some situations where I need to open a document using the X-window capabilities (for example PDFs). In such scenarios I would have to launch a new instance of emacs client in the X-window, change the buffer and open the file.
+Not anymore as I have developed a small function that will work just as "C-x 5 2", but will create an X-window emacsclient frame no mather from where I call it.
+
+#+BEGIN_SRC emacs-lisp
+  (defun jf/make-Xwindow-frame ()
+    (interactive)
+    (make-frame (list '(window-system . x))))
+
+  (global-set-key (kbd "C-x 5 5") #'jf/make-Xwindow-frame)
+#+END_SRC
 * Final Emacs-Lisp
-This section holds the configurations that must go at the end of the configuration file, this section is required for the proper functions of req-package, so no further configurations can be included after this section
 #+BEGIN_SRC emacs-lisp
 (message "Finished loading")
-(req-package-finish)
 ;; No further configurations beyond this line
 #+END_SRC
