@@ -1,0 +1,471 @@
+#+OPTIONS: ':nil *:t -:t ::t <:t H:3 \n:nil ^:nil arch:headline
+#+OPTIONS: author:t broken-links:mark c:nil creator:nil
+#+OPTIONS: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
+#+OPTIONS: p:nil pri:nil prop:nil stat:t tags:nil tasks:t tex:t
+#+OPTIONS: timestamp:t title:t toc:t todo:nil |:t
+#+TITLE: Managing References with Zotero for Reftex and Org-ref 
+#+AUTHOR: Joaquin Figueroa
+#+EMAIL: joaquin@joaquin_laptop
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+#+EXCLUDE_TAGS: noexport
+#+CREATOR: Emacs 25.1.1 (Org mode 9.0.5)
+#  #######  Latex Options ####
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS:
+#+LATEX_HEADER:
+#+LATEX_HEADER_EXTRA:
+#+DESCRIPTION:
+#+KEYWORDS:
+#+SUBTITLE:
+#+LATEX_COMPILER: pdflatex
+#+DATE: \today
+
+
+Quite a latecomer to the party I was looking for a way to properly manage references as the number of papers I have to be aware of rises steadily and managing the bibtex file becomes ever so annoying, since at best websites gives you the bibtex which has to be manually added to a larger file, and sometimes not a download link is provided. Fortunately [[https://www.zotero.org/][zotero]] provides with:
+- A database to store the references
+- A relatively convenient way to save the references
+- A way to link the downloaded PDF to the saved reference
+- An easy way to generate the bibtex file for all the references in the database
+
+With the bibtex file out of the way I needed the power to use it, thus I leverage the full power of [[https://github.com/jkitchin/org-ref][org-ref]] and [[https://www.gnu.org/software/auctex/reftex.html][RefTex]] to interact with the bibtex file.
+
+Obviously I didn't figure it all by myself, as I first learned about Zotero thanks to [[http://irreal.org/blog/][Irreal]] who pointed out [[http://nickjudd.com/blog/2016/02/13/emacs-notes/][these]] [[http://www.mkbehr.com/posts/a-research-workflow-with-zotero-and-org-mode/][fine]] blog-post about the tool and how to integrate it with Emacs, and while they pointed me in the right direction I was not satisfied with the zotxt tool as I was lacking automation.
+
+Finally I found [[http://iflysib14.iflysib.unlp.edu.ar/tomas/en/blog/reference-management.html][this]] blog post which showed further integration with RefTex through =helm-bibtex=, which got me intrigued to make it into a configuration that is comfortable enough
+* Requirements
+I need some minor libraries to use the features in this document
+#+BEGIN_SRC emacs-lisp :exports none :results silent
+  ;;; -*- lexical-binding: t -*-
+  (require 'cl-lib)
+#+END_SRC
+
+
+* Zotero
+There is little to add in the Zotero department that has not been covered by the aforementioned blogs, however for the sake of completeness
+- I installed Zotero in my computer as an offline tool
+- I populate the database through the firefox-addon.
+- I download the PDFs and keep them linked to the reference in the database
+- I rename the PDFs using the Zotfile addon for Zotero and use the settings to remove the white-spaces [fn:: This helps to keep the organized should I want to send them to collaborators or to a tablet for reading only]
+- I export the bibtex database only, as all other task are performed through Emacs
+
+* Helm-bibtex
+I use =Helm-bibtex= as an option to RefTex as it allows for better selection of cites, but reftex provides a better mecanism for inserting multiple cites with the same command.
+
+#+BEGIN_SRC emacs-lisp :exports none :results silent
+  (setq path-to-bib-notes-file-org "/home/joaquin/Documents/Bibliography/bibnotes.org")
+  (setq path-to-bib-file-bib "/home/joaquin/Documents/Bibliography/My_Library.bib")
+#+END_SRC
+
+To setup the =Helm-bibtex= utility we need to set some variables to let the tool where to look for the bibtex references and where to store the notes
+#+BEGIN_SRC emacs-lisp :results silent
+;; (setq bibtex-completion-notes-path path-to-bib-notes-file-org)
+   (setq bibtex-completion-bibliography path-to-bib-file-bib)
+   (setq org-bibtex-file path-to-bib-file-bib)
+#+END_SRC
+
+Now we need to tell =Helm-bibtex= how to open the PDF files as linked by Zotero.
+#+BEGIN_SRC emacs-lisp :results silent
+  (setq bibtex-completion-pdf-field "file")
+  (setq bibtex-completion-pdf-open-function 'open-if-pdf) 
+#+END_SRC
+
+Since the Zotero specification of the file may point to the snapshot of the web-page associated to the reference and I only want to open the corresponding PDF, I use a slightly more complex function to ensure the program only tries to open PDF files. 
+#+BEGIN_SRC emacs-lisp :results silent
+  (defun filepath-is-pdf-path (file-path)
+    (and (file-exists-p file-path)
+         (string-match (rx-to-string `(: ,".pdf" eos) t) file-path)))
+
+  (defun open-if-pdf (file-path)
+    "Only tries to open a file if is a PDF"
+    (and (file-exists-p file-path)
+         (string-match (rx-to-string `(: ,".pdf" eos) t) file-path)
+         (open-pdf-with-emacs-or-program file-path)
+    ))
+
+  (defun open-pdf-with-emacs-or-program (pdf-file)
+    "If using emacs from terminal we use external program. Else in other window"
+    (interactive)
+    (let (frame (selected-frame))
+      (if (window-system frame)
+          (find-file-other-window pdf-file)
+        (start-process "evince" "*helm-bibtex-evince*" "/usr/bin/evince"  pdf-file)
+     ))
+    )
+#+END_SRC
+
+#+RESULTS:
+: open-pdf-with-emacs-or-program
+
+These functions are also used for =org-ref= and =RefTex= configurations, but for full disclosure, I had a small warning that at some point the functions do not receive a valid parameter, which I couldn't fix. 
+Also for some reason that eludes me I'm not able to open the PDF unless I'm working on the same directory as the bibtex file
+
+* Org-Ref
+Up until recently I wasn't  convinced by org-ref mainly because it doesn't play very well with exports other than Latex, but with the increased need of properly handling citations and the addition of Zotero, the downsides are out-weighted   by the upsides.
+
+So first we need some basic setup to make org-ref work properly with in my org-documents and the corresponding Latex export
+#+BEGIN_SRC emacs-lisp :results silent
+  (require 'org-ref)
+  (setq org-latex-prefer-user-labels t)
+  (setq org-ref-default-bibliography (list path-to-bib-file-bib))
+  (setq org-ref-bibliography-notes path-to-bib-notes-file-org)
+  (setq org-ref-get-pdf-filename-function 'org-ref-get-zotero-filename)
+#+END_SRC
+Unfortunately =Org-Ref= does not provide with a proper mechanism to open the PDF associated through Zotero, therefore I had to define my one roughly based on the /mendeley/ provided version
+
+
+label:src:zotero-func
+#+caption: this is zotero
+#+BEGIN_SRC emacs-lisp :results silent
+  (defun org-ref-get-zotero-filename (key)
+    "Return the pdf filename indicated by mendeley file field.
+  Falls back to `org-ref-get-pdf-filename' if file field does not exist.
+  Contributed by https://github.com/autosquid.
+  Argument KEY is the bibtex key."
+    (let* ((results (org-ref-get-bibtex-key-and-file key))
+           (bibfile (cdr results))
+           entry)
+      (with-temp-buffer
+        (insert-file-contents bibfile)
+        (bibtex-set-dialect (parsebib-find-bibtex-dialect) t)
+        (bibtex-search-entry key nil 0)
+        (setq entry (bibtex-parse-entry))
+        (let* ((bib-file-field (org-ref-reftex-get-bib-field "file" entry))
+               (path-list (split-string bib-file-field "[:;]" t))
+               )
+          (open-if-pdf (car (cl-remove-if-not #'filepath-is-pdf-path path-list)))
+          ))))
+#+END_SRC
+
+
+* keybindings
+I add some keybinding to use the additional functionality. For some reason Ivy requires a variable that is not defined so I define it here
+#+BEGIN_SRC emacs-lisp :results nil
+(setq ivy-current-prefix-arg nil)
+#+END_SRC
+
+#+RESULTS:
+
+I tested all cite frameworks provided by org-ref, and each has its advantages and disadvantages. Overall I liked helm better because it provides better context on most situations, but the helm insert-label does not work as it doesn't insert anything, thus I use Ivy there. 
+#+BEGIN_SRC emacs-lisp :results none
+(require 'org-ref-reftex)
+(require 'org-ref-ivy-cite)
+(require 'org-ref-helm-cite)
+(defun org-ref-helm-ivy-cite-completion ()
+  "Mix with Ivy as Ivy-label works, and helm's does not"
+  (interactive)
+  (setq org-ref-insert-link-function 'org-ref-insert-link
+	org-ref-insert-cite-function 'org-ref-ivy-insert-cite-link
+	org-ref-insert-label-function 'org-ref-ivy-insert-label-link
+	org-ref-insert-ref-function 'org-ref-helm-insert-ref-link
+	org-ref-cite-onclick-function 'org-ref-cite-click-helm))
+(org-ref-helm-ivy-cite-completion)
+#+END_SRC
+
+Now I define a "cite-hydra" based on the =org-ref-cite-hydra=, but added commands to insert citations, specially using RefTex. Clearly overlaps with the original =C-c ]= for insert citation
+#+BEGIN_SRC emacs-lisp :results none
+(defhydra jf/org-ref-cite-hydra (:color blue)
+  "
+_p_: Open pdf     _w_: WOS          _g_: Google Scholar _K_: Copy citation to clipboard
+_u_: Open url     _r_: WOS related  _P_: Pubmed         _k_: Copy key to clipboard
+_n_: Open notes   _c_: WOS citing   _C_: Crossref       _f_: Copy formatted entry 
+_o_: Open entry   _e_: Email entry  ^ ^                 _q_: quit
+_i_: helm-cite    _I_: reftex-cite  ^ ^                 ^ ^
+"
+  ("o" org-ref-open-citation-at-point nil)
+  ("p" org-ref-open-pdf-at-point nil)
+  ("i" org-ref-helm-cite nil)
+  ("I" org-ref-insert-cite-link nil)
+  ("n" org-ref-open-notes-at-point nil)
+  ("u" org-ref-open-url-at-point nil)
+  ("w" org-ref-wos-at-point nil)
+  ("r" org-ref-wos-related-at-point nil)
+  ("c" org-ref-wos-citing-at-point nil)
+  ("g" org-ref-google-scholar-at-point nil)
+  ("P" org-ref-pubmed-at-point nil)
+  ("C" org-ref-crossref-at-point nil)
+  ("K" org-ref-copy-entry-as-summary nil)
+  ("k" (progn
+	 (kill-new
+	  (car (org-ref-get-bibtex-key-and-file))))
+   nil)
+  ("f" (save-window-excursion
+	 (org-ref-open-citation-at-point)
+	 (kill-new (orhc-formatted-citation (bibtex-parse-entry t))))
+   nil)
+
+  ("e" (kill-new (save-excursion
+		   (org-ref-open-citation-at-point)
+		   (org-ref-email-bibtex-entry)))
+   nil)
+  ("q" nil))
+
+(define-key org-mode-map
+ (kbd "C-c )") 'jf/org-ref-cite-hydra/body)
+#+END_SRC
+
+#+RESULTS:
+: jf/org-ref-cite-hydra/body
+
+* Adding the same capabilities to Reftex
+With the enhanced capabilities of =org-ref=, I wanted the same functionality when editing latex code directly, thus I built 2 functions that let me check the PDF file and the notes when over a =\cite= environment. The idea is to leverage the functions available for org-ref
+
+#+caption: Code to add the functionality to reftex
+label:src:reftex-functions
+#+BEGIN_SRC emacs-lisp :results silent
+    (defun reftex-view-org-ref-pdf (&optional arg)
+      (interactive "P")
+      (let ( (key (reftex-this-word "^{}%\n\r, \t")) )
+	(funcall org-ref-get-pdf-filename-function key)))
+
+
+    (defun reftex-view-org-ref-notes (&optional arg)
+      (interactive "P")
+      (let ((key (reftex-this-word "^{}%\n\r, \t")))
+	(funcall org-ref-notes-function key))
+      )
+
+  (defhydra jf/reftex-org-ref-cite-hydra (:color blue)
+    "
+  _p_: Open pdf     _i_: helm-cite    
+  _n_: Open notes   _I_: reftex-cite
+  _q_: quit
+  "
+    ("p" reftex-view-org-ref-pdf nil)
+    ("n" reftex-view-org-ref-notes nil)
+    ("i" helm-bibtex nil)
+    ("I" reftex-citation nil)
+
+    ("q" nil))
+
+  (define-key reftex-mode-map
+   (kbd "C-c [") 'jf/reftex-org-ref-cite-hydra/body)
+  (define-key reftex-mode-map
+   (kbd "C-c v") 'pdf-sync-forward-search)
+#+END_SRC
+
+
+* Interleave
+[[https://github.com/rudolfochrist/interleave][Interleave]] is an additional capability to Org-mode that improves on the note-taking capabilities that I already have configured, the idea is that with interleave I can take notes and have them automatically referenced to the corresponding page, which is quite useful for longer documents.
+
+To add interleave I only need to have it installed, but since I need to generate the =:INTERLEAVE_PDF:= attribute from the zotero-generated bibtex database, I had to modify the =org-ref-reftex-format-citation= to parse the non-standard =file= field.
+
+#+BEGIN_SRC emacs-lisp :results none
+
+  (defun org-ref-get-zotero-pdf-path (entry)
+    (let* ((bib-file-field (org-ref-reftex-get-bib-field "file" entry))
+           (path-list (cdr (split-string bib-file-field "[:;]" t)))
+           )
+      (car (cl-remove-if-not #'filepath-is-pdf-path path-list))
+      ))
+
+  (defun org-ref-reftex-format-citation (entry format)
+    "Format the bibtex ENTRY according to the FORMAT argument.
+  ENTRY is from `bibtex-parse-entry'
+  The FORMAT is a string with these percent escapes.
+
+  In the format, the following percent escapes will be expanded.
+
+  %l   The BibTeX label of the citation.
+  %a   List of author names, see also `reftex-cite-punctuation'.
+  %2a  Like %a, but abbreviate more than 2 authors like Jones et al.
+  %A   First author name only.
+  %e   Works like %a, but on list of editor names.  (%2e and %E work as well)
+
+  It is also possible to access all other BibTeX database fields:
+  %b booktitle     %c chapter        %d edition    %h howpublished
+  %i institution   %j journal        %k key        %m month
+  %n number        %o organization   %p pages      %P first page
+  %r address       %s school         %u publisher  %t title
+  %v volume        %y year
+  %B booktitle, abbreviated          %T title, abbreviated
+  %U url
+  %D doi
+  %S series        %N note
+
+  %f pdf filename
+  %F absolute pdf filename
+
+  Usually, only %l is needed.  The other stuff is mainly for the echo area
+  display, and for (setq reftex-comment-citations t).
+
+  %< as a special operator kills punctuation and space around it after the
+  string has been formatted.
+
+  A pair of square brackets indicates an optional argument, and RefTeX
+  will prompt for the values of these arguments.
+
+  Beware that all this only works with BibTeX database files.  When
+  citations are made from the \bibitems in an explicit thebibliography
+  environment, only %l is available."
+    ;; Format a citation from the info in the BibTeX ENTRY
+    (unless (stringp format) (setq format "\\cite{%l}"))
+
+    (if (and reftex-comment-citations
+             (string-match "%l" reftex-cite-comment-format))
+        (error "Reftex-cite-comment-format contains invalid %%l"))
+
+    (while (string-match
+            "\\(\\`\\|[^%]\\)\\(\\(%\\([0-9]*\\)\\([a-zA-Z]\\)\\)[.,;: ]*\\)"
+            format)
+      (let ((n (string-to-number (match-string 4 format)))
+            (l (string-to-char (match-string 5 format)))
+            rpl b e)
+        (save-match-data
+          (setq rpl
+                (cond
+                 ((= l ?l) (concat
+                            (org-ref-reftex-get-bib-field "&key" entry)
+                            (if reftex-comment-citations
+                                reftex-cite-comment-format
+                              "")))
+                 ((= l ?a) (replace-regexp-in-string
+                            "\n\\|\t\\|\s+" " "
+                            (reftex-format-names
+                             (reftex-get-bib-names "author" entry)
+                             (or n 2))))
+                 ((= l ?A) (replace-regexp-in-string
+                            "\n\\|\t\\|\s+" " "
+                            (car (reftex-get-bib-names "author" entry))))
+                 ((= l ?b) (org-ref-reftex-get-bib-field "booktitle" entry "in: %s"))
+                 ((= l ?B) (reftex-abbreviate-title
+                            (org-ref-reftex-get-bib-field "booktitle" entry "in: %s")))
+                 ((= l ?c) (org-ref-reftex-get-bib-field "chapter" entry))
+                 ((= l ?d) (org-ref-reftex-get-bib-field "edition" entry))
+                 ((= l ?D) (org-ref-reftex-get-bib-field "doi" entry))
+                 ((= l ?e) (reftex-format-names
+                            (reftex-get-bib-names "editor" entry)
+                            (or n 2)))
+                 ((= l ?J) (org-ref-get-zotero-pdf-path entry))
+                 ((= l ?E) (car (reftex-get-bib-names "editor" entry)))
+                 ((= l ?f) (concat (org-ref-reftex-get-bib-field "=key=" entry) ".pdf"))
+                 ((= l ?F) (concat org-ref-pdf-directory (org-ref-reftex-get-bib-field "=key=" entry) ".pdf"))
+                 ((= l ?h) (org-ref-reftex-get-bib-field "howpublished" entry))
+                 ((= l ?i) (org-ref-reftex-get-bib-field "institution" entry))
+                 ((= l ?j) (let ((jt (reftex-get-bib-field "journal" entry)))
+                             (if (string= "" jt)
+                                 (reftex-get-bib-field "journaltitle" entry)
+                               jt)))
+                 ((= l ?k) (org-ref-reftex-get-bib-field "=key=" entry))
+                 ((= l ?m) (org-ref-reftex-get-bib-field "month" entry))
+                 ((= l ?n) (org-ref-reftex-get-bib-field "number" entry))
+                 ((= l ?N) (org-ref-reftex-get-bib-field "note" entry))
+                 ((= l ?o) (org-ref-reftex-get-bib-field "organization" entry))
+                 ((= l ?p) (org-ref-reftex-get-bib-field "pages" entry))
+                 ((= l ?P) (car (split-string
+                                 (org-ref-reftex-get-bib-field "pages" entry)
+                                 "[- .]+")))
+                 ((= l ?s) (org-ref-reftex-get-bib-field "school" entry))
+                 ((= l ?S) (org-ref-reftex-get-bib-field "series" entry))
+                 ((= l ?u) (org-ref-reftex-get-bib-field "publisher" entry))
+                 ((= l ?U) (org-ref-reftex-get-bib-field "url" entry))
+                 ((= l ?r) (org-ref-reftex-get-bib-field "address" entry))
+                 ;; strip enclosing brackets from title if they are there
+                 ((= l ?t) (replace-regexp-in-string
+                            "\n\\|\t\\|\s+" " "
+                            (org-ref-reftex-get-bib-field "title" entry)))
+                 ((= l ?T) (reftex-abbreviate-title
+                            (replace-regexp-in-string
+                             "\n\\|\t\\|\s+" " "
+                             (org-ref-reftex-get-bib-field "title" entry))))
+                 ((= l ?v) (org-ref-reftex-get-bib-field "volume" entry))
+                 ((= l ?y) (org-ref-reftex-get-bib-field "year" entry)))))
+
+        (if (string= rpl "")
+            (setq b (match-beginning 2) e (match-end 2))
+          (setq b (match-beginning 3) e (match-end 3)))
+        (setq format (concat (substring format 0 b) rpl (substring format e)))))
+    (while (string-match "%%" format)
+      (setq format (replace-match "%" t t format)))
+    (while (string-match "[ ,.;:]*%<" format)
+      (setq format (replace-match "" t t format)))
+    format)
+#+END_SRC
+
+Now that I have the capability to add the =:INTERLEAVE_PDF:= property I have to modify the note title format to include it, and to force all notes to be a top level header (due to interleave limitations)
+
+#+BEGIN_SRC emacs-lisp :results silent
+  (setq org-ref-note-title-format
+    "* TODO %y - %t
+   :PROPERTIES:
+    :Custom_ID: %k
+    :AUTHOR: %9a
+    :JOURNAL: %j
+    :YEAR: %y
+    :VOLUME: %v
+    :PAGES: %p
+    :DOI: %D
+    :URL: %U
+    :INTERLEAVE_PDF: %J
+   :END:
+
+  "
+  )
+#+END_SRC
+
+Finally to activate interleave I need to be at the top level header, however given that I'm lazy I have wrote a small function to launch interleave as long as I'm "inside" the header and not necessarily at the top 
+
+#+BEGIN_SRC emacs-lisp :results silent
+  (defun jf/org-move-current-top-header ()
+    (interactive)
+    (ignore-errors 
+      (while t
+        (org-up-element) )))
+
+  (defun jf/activate-interleave ()
+    (interactive)
+    (jf/org-move-current-top-header)
+    (interleave)
+    )
+
+  (define-key org-mode-map
+    (kbd "C-c l") #'jf/activate-interleave)
+#+END_SRC
+
+
+* Latex bib style                                                  :noexport:
+#+BEGIN_EXPORT latex 
+\bibliographystyle{plain}
+\bibliography{My_Library.bib}
+#+END_EXPORT
+
+ref:eqref:asdf
+
+cite:li_equivalent_2015
+
+cite:mariantoni_photon_2011
+
+#+BIBLIOGRAPHY: ~/Documents/Bibliography/My_Library.bib
+
+cite:schmidt_strong_2009
+
+cite:hu_photonic_2017
+
+ref:src:reftex-functions
+
+cite:begley_optimized_2016
+
+
+ref:src:reftex-functions
+
+I feel moronic as this is clearly stated in the manual. Finally it didn't work XD
+#+BEGIN_SRC emacs-lisp :eval never
+  (defun my/org-ref-open-pdf-at-point ()
+    "Open the pdf for bibtex key under point if it exists."
+    (interactive)
+    (let* ((results (org-ref-get-bibtex-key-and-file))
+           (key (car results))
+	   (pdf-file (car (bibtex-completion-find-pdf key))))
+      (if (file-exists-p pdf-file)
+	  (org-open-file pdf-file)
+        (message "No PDF found for %s" key))))
+
+  (setq org-ref-open-pdf-function 'my/org-ref-open-pdf-at-point)
+#+END_SRC
+
+#+RESULTS:
+: my/org-ref-open-pdf-at-point
+
+
+
+

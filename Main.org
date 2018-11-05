@@ -1,3 +1,4 @@
+
 This is the main configuration file for Emacs, this file hold the rationale for the package choices and their minimal configurations.
 Further configurations, if any, is available through additional sourced org-files in the specific org-directory
 
@@ -181,10 +182,32 @@ This section holds the configuration for the existing packages, and the installa
 Ido mode is very useful for file and buffer navigation, thanks to the flexible matching, since Ido-mode is built-in I only need minor configurations. For a more advanced guide on Ido-mode see [[https://www.masteringemacs.org/article/introduction-to-ido-mode][Mastering Emacs]]
 #+BEGIN_SRC emacs-lisp
   ;; Small configuration for IDO-mode
+  (ido-mode 1)
   (setq ido-enable-flex-matching t)
   (setq ido-everywhere t)
-  (ido-mode 1)
+  (setq ido-default-buffer-method 'selected-window)
+  (setq ido-default-frame-method 'selected-window)
 #+END_SRC
+I also use ido-vertical mode as is much cleaner and clearer when buffer-names are large.
+#+BEGIN_SRC emacs-lisp
+  ;; Ido vertical mode
+  (use-package ido-vertical-mode
+    :config
+    ;;; See config at https://github.com/creichert/ido-vertical-mode.el
+    (setq ido-use-faces t)
+    (setq ido-vertical-show-count t)
+    (setq ido-vertical-define-keys 'C-n-C-p-up-and-down)
+    (set-face-attribute 'ido-vertical-first-match-face nil
+			:background "#3f3f3f")
+    (set-face-attribute 'ido-vertical-only-match-face nil
+			:background "#dcdcdc"
+			:foreground "#3f3f3f")
+    (set-face-attribute 'ido-vertical-match-face nil
+			:foreground "#cc9393")
+    (ido-vertical-mode 1)
+    )
+#+END_SRC
+
 ** Undo tree
    :PROPERTIES:
    :DESCRIPTION: Better Undo-redo behavior
@@ -222,11 +245,89 @@ This section is to fix the defaults for ediff, meaning to remove the additional 
    :PROPERTIES:
    :DESCRIPTION: Org-mode configs
    :END:
-[[http://orgmode.org/][Org-mode]] is a great package, and has so many features, that is hard to do a small summary, at the very least, the whole initialization file was written using it. The most simple customization for it is to use font-locking for the source fragments
+[[http://orgmode.org/][Org-mode]] is a great package, and has so many features, that is hard to do a small summary, at the very least, the whole initialization file was written using it. The most simple customization for it is to use font-locking for the source fragments and activating frequently used languages in babel
 #+BEGIN_SRC emacs-lisp
   ;; Pretty-printing for source blocks in org
   (setq org-src-fontify-natively t)
+  (setq org-highlight-latex-and-related '(latex))
+   (org-babel-do-load-languages
+    'org-babel-load-languages
+    '((emacs-lisp . t)
+      (latex . t)   ;; <== add latex to the list
+      (python . t)
+      (shell . t)
+      (gnuplot . t)
+      (haskell . t)
+      (dot . t)
+      ))
 #+END_SRC
+*** Org-edit-latex
+Not so long ago a new package Org-edit-latex, was released which allows for the edition of latex formulas and other construct in a "src" buffer, which I found very useful
+ #+BEGIN_SRC emacs-lisp :results none
+   (use-package org-edit-latex
+     :config
+     (add-hook 'org-mode-hook 'org-edit-latex-mode)
+     )
+ #+END_SRC
+** Emacs Bootstrap stolen configs
+   :PROPERTIES:
+   :DESCRIPTION: Helm Avy company, etc
+   :END:
+
+I'm shamelessly stealing configs from emacs-bootstrap, for the packages I care the most being avy for goto char, company, because company. Which-key, which was long overdue
+
+And helm, which I'm growing fond of with time, and favoring slowly over ido. This is obviosly temporary.
+
+#+BEGIN_SRC emacs-lisp
+  (use-package avy
+    :bind
+    ("C-c SPC" . avy-goto-char))
+
+  (use-package company
+    :config
+    (add-hook 'after-init-hook 'global-company-mode))
+
+  (use-package which-key
+    :config
+    (which-key-mode))
+
+  (use-package windmove
+    :bind
+    ("C-x <up>" . windmove-up)
+    ("C-x <down>" . windmove-down)
+    ("C-x <left>" . windmove-left)
+    ("C-x <right>" . windmove-right))
+
+  (use-package expand-region
+    :bind
+    ("C-=" . er/expand-region))
+
+  (use-package helm
+    :init
+    (require 'helm-config)
+    :config
+    (setq helm-split-window-in-side-p t
+          helm-split-window-default-side 'below
+          helm-idle-delay 0.0
+          helm-input-idle-delay 0.01
+          helm-quick-update t
+          helm-ff-skip-boring-files t)
+    (helm-mode 1)
+    :bind (("M-x" . helm-M-x)
+           ("M-y" . helm-show-kill-ring)
+           ("C-x C-f" . helm-find-files)
+           ("C-x v" . helm-projectile)
+           ("C-x c o" . helm-occur)
+           ("C-x c p" . helm-projectile-ag)
+           ("C-x c k" . helm-show-kill-ring)
+           :map helm-map
+           ("<tab>" . helm-execute-persistent-action)))
+
+  (use-package helm-swoop
+    :bind
+    ("C-x c s" . helm-swoop))
+#+END_SRC
+
 * Latex Configuration
 #+BEGIN_SRC emacs-lisp
   ;; (use-package 'reftex
@@ -234,17 +335,26 @@ This section is to fix the defaults for ediff, meaning to remove the additional 
   ;;               )
   (setq-default TeX-master nil)
   (add-hook 'LaTeX-mode-hook 'TeX-PDF-mode) ;turn on pdf-mode.  AUCTeX
-                                          ;will call pdflatex to
-                                          ;compile instead of latex.
+					  ;will call pdflatex to
+					  ;compile instead of latex.
   (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode) ;turn on math-mode by
-                                          ;default
+					  ;default
   (add-hook 'LaTeX-mode-hook 'flyspell-mode) ;turn on flyspell mode by
-                                          ;default
+					  ;default
 
   (setq reftex-plug-into-AUCTeX t)
   (setq TeX-auto-save t)
   (setq TeX-save-query nil)
   (setq TeX-parse-self t)
+  ;; to use pdfview with auctex
+   (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
+      TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view))
+      TeX-source-correlate-start-server t) ;; not sure if last line is neccessary
+
+   ;; to have the buffer refresh after compilation
+   (add-hook 'TeX-after-compilation-finished-functions
+	  #'TeX-revert-document-buffer)
+  (setq LaTeX-command "latex -synctex=1")
 #+END_SRC
 * Test commands
 These are features that I use but I have yet to properly document.
@@ -280,28 +390,6 @@ These are features that I use but I have yet to properly document.
 
 #+END_SRC
 
-** Org-edit-latex
-#+BEGIN_SRC emacs-lisp :results none
-  (use-package org-edit-latex
-    :config
-    (add-hook 'org-mode-hook 'org-edit-latex-mode)
-    )
-
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (latex . t)   ;; <== add latex to the list
-     (python . t)
-     (shell . t)
-     (haskell . t)
-     ))
-#+END_SRC
-
-** org-highlight latex
-#+BEGIN_SRC emacs-lisp :results none
-(setq org-highlight-latex-and-related '(latex))
-#+END_SRC
-
 ** Ibuffer
 #+BEGIN_SRC emacs-lisp
 (global-set-key (kbd "C-x C-b") 'ibuffer)
@@ -324,6 +412,86 @@ Not anymore as I have developed a small function that will work just as "C-x 5 2
 
   (global-set-key (kbd "C-x 5 5") #'jf/make-Xwindow-frame)
 #+END_SRC
+** Code Folding
+I haven't decided on a good code folding strategy, but the top contenders are [[https://github.com/mrkkrp/vimish-fold][vimish-fold]] and [[https://github.com/shanecelis/hideshow-org][hideshow-org]]. Hideshow org is simpler and more straightforward for my use case, as it binds tab to fold/unfold code blocks. Vimish fold is more feature complete as it allows for folding anywhere and persistency. 
+#+BEGIN_SRC emacs-lisp
+  (use-package hideshow-org
+    :config
+    ;; (add-hook 'prog-mode-hook 'hs-org/minor-mode)
+    :bind ("C-c h" . hs-org/minor-mode)
+    )
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (use-package vimish-fold
+    :bind
+    ("S-SPC v a" . vimish-fold-avy)
+    ("S-SPC v f" . vimish-fold)
+    ("S-SPC v d" . vimish-fold-delete)
+    ("S-SPC v D" . vimish-fold-delete)
+    )
+#+END_SRC
+
+** Dired-Preview
+   Sometimes I need to preview some files in a directory, but the usual mechanism provided by dired is a little cumberstone, so I'm reducing the friction so that navigation keys and mark/unmark keys immediately preview the file at point.
+*** Utilities 
+    Here I define wrapper functions to the dired functionality I want to improve. Notice I could use Hooks, but decided against them, as I don't know how to remove the hooks afterwards, so this approach was easier to implement.
+    #+BEGIN_SRC emacs-lisp
+      (defun jf-dired/next-line (arg)
+	(interactive "^p")
+	(progn
+	  (dired-next-line arg)
+	  (dired-display-file)
+	  )
+	)
+
+      (defun jf-dired/previous-line (arg)
+	(interactive "^p")
+	(jf-dired/next-line (- (or arg 1))))
+
+      (defun jf-dired/flag-file-deletion (arg &optional interactive)
+	(interactive (list current-prefix-arg t))
+	(progn
+	  (dired-flag-file-deletion arg interactive)
+	  (dired-display-file)
+	  ))
+
+      (defun jf-dired/unmark (arg &optional interactive)
+	(interactive (list current-prefix-arg t))
+	(progn
+	  (dired-unmark arg interactive)
+	  (dired-display-file)
+	  ))
+    #+END_SRC
+*** Minor mode
+Here I define my minor mode and and a keybinding for it
+#+BEGIN_SRC emacs-lisp
+    (define-minor-mode jf-dired-mode/previewer
+      "jf-dired-mode/previewer
+	 This mode modifies some keybinding in dired mode to
+	 preview the contents of the file at point. 
+       "
+      ;; The initial value.
+      :init-value nil
+      ;; The indicator for the mode line.
+      :lighter " jf-D"
+      ;; The minor mode bindings.
+      :keymap
+      '(
+	([down] . jf-dired/next-line)
+	([up] . jf-dired/previous-line)
+	((kbd "d") . jf-dired/flag-file-deletion)
+	((kbd "u") . jf-dired/unmark)
+	((kbd "1") . delete-other-windows)
+	)
+      :group 'jf-dired)
+
+  (eval-after-load "dired"
+    (define-key dired-mode-map (kbd "P") 'jf-dired-mode/previewer )
+    )
+
+#+END_SRC
+
 * Final Emacs-Lisp
 #+BEGIN_SRC emacs-lisp
 (message "Finished loading")

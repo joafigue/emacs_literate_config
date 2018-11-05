@@ -51,5 +51,6 @@ Also I have no intention of using a package that is not available through either
   (use-package org)
   ;; Load org-files
   (org-babel-load-file (expand-file-name "Main.org" emacs-files-dir))
+  (org-babel-load-file (expand-file-name "jf_org_ref_reftex_setup.org" emacs-files-dir))
 #+END_SRC
 
